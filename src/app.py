@@ -5,6 +5,7 @@ import time
 #hard coded values that will later be given by the model
 confidence_interval = rd.randint(60, 100)
 model_decision = rd.randint(0, 1)
+TARGET_CONFIDENCE_INTERVAL = 75
 
 
 st.title("Deepfake Detection System")
@@ -18,9 +19,9 @@ uploaded_file = st.file_uploader(
 
 #takes in the model_decision and confidence_interval variables and displays the result of the analysis based on their values
 def detection_classification():
-    if model_decision == 1 and confidence_interval > 75:
+    if model_decision == 1 and confidence_interval > TARGET_CONFIDENCE_INTERVAL:
         st.write("### :green[The media is likely to be real.]")
-    elif model_decision == 1 and confidence_interval <= 75:
+    elif model_decision == 1 and confidence_interval <= TARGET_CONFIDENCE_INTERVAL:
         st.write("### :orange[The media is inconclusive.]")
     else:
         st.write("### :red[The media is likely to be fake.]")
