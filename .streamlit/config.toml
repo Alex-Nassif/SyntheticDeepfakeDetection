@@ -1,0 +1,8 @@
+
+#changes the mode of the web app to minimal, which hides the deploy option
+[client]
+toolbarMode = "minimal"
+
+#changes the max upload size to adjust the limit of file uploads to 500MB, can be changed if needed
+[server]
+maxUploadSize = 500
