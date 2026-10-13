@@ -19,10 +19,10 @@ uploaded_file = st.file_uploader(
 
 #takes in the model_decision and confidence_interval variables and displays the result of the analysis based on their values
 def detection_classification():
-    if model_decision == 1 and confidence_interval > TARGET_CONFIDENCE_INTERVAL:
-        st.write("### :green[The media is likely to be real.]")
-    elif model_decision == 1 and confidence_interval <= TARGET_CONFIDENCE_INTERVAL:
+    if  confidence_interval < TARGET_CONFIDENCE_INTERVAL:
         st.write("### :orange[The media is inconclusive.]")
+    elif model_decision == 1:
+        st.write("### :green[The media is likely to be real.]")
     else:
         st.write("### :red[The media is likely to be fake.]")
 
