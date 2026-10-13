@@ -1,7 +1,9 @@
 
-#changes the mode of the web app to minimal, which hides the deploy option
+#changes the mode of the web app, uncomment the one you want to use, the default is viewer
 [client]
 #toolbarMode = "minimal"
+#toolbarMode = "expanded"
+toolbarMode = "viewer"
 
 #changes the max upload size to adjust the limit of file uploads to 500MB, can be changed if needed
 [server]

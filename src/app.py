@@ -2,6 +2,10 @@ import streamlit as st
 import random as rd
 import time
 
+#hard coded values that will later be given by the model
+confidence_interval = rd.randint(60, 100)
+model_decision = rd.randint(0, 1)
+
 
 st.title("Deepfake Detection System")
 
@@ -12,23 +16,35 @@ uploaded_file = st.file_uploader(
     label_visibility="collapsed"
 )
 
+#takes in the model_decision and confidence_interval variables and displays the result of the analysis based on their values
+def detection_classification():
+    if model_decision == 1 and confidence_interval > 75:
+        st.write("### :green[The media is likely to be real.]")
+    elif model_decision == 1 and confidence_interval <= 75:
+        st.write("### :orange[The media is inconclusive.]")
+    else:
+        st.write("### :red[The media is likely to be fake.]")
+
 
 if uploaded_file is not None:
     st.write("Selected file:", uploaded_file.name)
-    st.write("File size:", uploaded_file.size)
+    st.write("File size(bytes):", uploaded_file.size)
 
-    #simulates the analysis of the media file
+    
+    #shows the model has started analyzing
     st.write("Analyzing the media, please wait...")
+
+    #TODO: Remove when actual system is implemented
+    #simulates wait time
     wait_time = rd.randint(1, 5)
     time.sleep(wait_time)
-    
-    output = rd.randint(0,2)
 
-    #simulates the different ouputs of the model
-    if output == 0:
-        st.write("### :green[The media is likely to be real.]")
-    elif output == 1:
-        st.write("### :red[The media is likely to be fake.]")
-    else:
-        st.write("### :orange[The media is inconclusive.]")
+    #calls the detection_classification function to display the result of the analysis
+    detection_classification()
 
+    st.write("Confidence interval:", confidence_interval, "%")
+    #TODO: Maybe add an explanation portion
+
+
+
+        
