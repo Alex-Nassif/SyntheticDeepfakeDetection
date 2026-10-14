@@ -35,7 +35,7 @@ def configure_model():
 
     return model
 
-def run_model(model, processed_input, predict_function):
+def run_model(model, processed_input, predict_function=None):
     """
     Execution of model and prediction from data.
     Includes train and testing split and experiment environment.
@@ -54,6 +54,8 @@ def run_model(model, processed_input, predict_function):
         if logits.shape != (1, 2):
             raise ValueError("Expected two classification outputs.")
         probabilities = logits.softmax(dim=-1)
+        #print("Logits:", logits[0].tolist())
+        #print("Probabilities:", probabilities[0].tolist())
 
     score = probabilities[0, 1].item()
 
