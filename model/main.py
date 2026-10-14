@@ -1,4 +1,5 @@
 import numpy as np
+from PIL import Image
 
 from data_processor import get_input, processing_input
 from model_setup import configure_model, run_model
@@ -9,12 +10,22 @@ def main():
 
     model = configure_model()
 
-    #temp input:
-    input_arrays = [
-        np.random.default_rng(42).integers(
-            0, 256, size=(3, 224, 224), dtype=np.uint8
-        )
-    ]
+
+
+    image_path = "images/test_image.jpg"
+
+    with Image.open(image_path) as image:
+        image = image.convert("RGB")
+        input_array = np.array(image)
+
+    # Convert (height, width, channels) to (channels, height, width).
+    input_array = np.transpose(input_array, (2, 0, 1))
+
+    input_arrays = [input_array]
+
+    # No ground-truth labels needed for inference.
+    true_labels = None
+
 
     #Replace with corresponding labels .
     #Real = 0, deepfake = 1.

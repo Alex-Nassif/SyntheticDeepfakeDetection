@@ -25,7 +25,10 @@ def configure_model():
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
 
-    model = module.GenD.from_pretrained(model_id)  
+    model = module.GenD.from_pretrained(
+        model_id,
+        low_cpu_mem_usage=False
+    )    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #always be cpu for standard case
     model = model.to(device)
     model.eval()
