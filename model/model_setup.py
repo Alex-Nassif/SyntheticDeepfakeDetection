@@ -5,6 +5,7 @@ from copy import deepcopy
 from huggingface_hub import hf_hub_download
 import torch
 import sys
+import importlib.util
 
 def configure_model():
     """
@@ -14,7 +15,22 @@ def configure_model():
 
     model_id = "yermandy/GenD_CLIP_L_14"
 
+    model_file = hf_hub_download(
+        repo_id=model_id,
+        filename="modeling_gend.py",
+    )
 
+    spec = importlib.util.spec_from_file_location("gend_hf_model", model_file)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+
+    model = module.GenD.from_pretrained(model_id)  
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #always be cpu for standard case
+    model = model.to(device)
+    model.eval()
+
+    return model
 
 def run_model(model, processed_input, predict_function):
     """
@@ -23,9 +39,20 @@ def run_model(model, processed_input, predict_function):
     """
     prepared_data = processed_input["data"]
 
+    device = next(model.parameters()).device
+    prepared_data = prepared_data.to(device)
+
+    model.eval()
+
     start_time = perf_counter()
 
-    score = predict_function(model, prepared_data)
+    with torch.inference_mode():
+        logits = model(prepared_data)
+        if logits.shape != (1, 2):
+            raise ValueError("Expected two classification outputs.")
+        probabilities = logits.softmax(dim=-1)
+
+    score = probabilities[0, 1].item()
 
     elapsed_time = perf_counter() - start_time
 
