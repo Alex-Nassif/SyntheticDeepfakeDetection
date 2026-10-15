@@ -4,7 +4,7 @@ def generate_conclusion(deepfake_score, threshold):
     The purpose is to generate a conclusion of deepfake or not.
     """
 
-    prediction = int(deepfake_score >= threshold)
+    prediction = (deepfake_score >= threshold)
 
     return {
         "prediction": prediction,
@@ -51,6 +51,7 @@ def calculate_metrics(predictions, true_labels):
         "precision": precision,
         "recall": recall,
         "f1": f1,
-        # Rows: actual real/deepfake; columns: predicted real/deepfake.
+        #Rows: actual real/deepfake; columns: predicted real/deepfake.
+        #roc-auc should be added also
         "confusion_matrix": [[tn, fp], [fn, tp]],
     }
