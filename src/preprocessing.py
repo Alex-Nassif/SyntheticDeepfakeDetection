@@ -7,9 +7,13 @@ from PIL import Image, ImageOps, UnidentifiedImageError
  
 # Match these to whatever the model was trained with.
 TARGET_SIZE = 224
-IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
-IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
-PAD_COLOR = (0, 0, 0)  # letterbox color for non-square images
+MEAN = np.array([0.48145466, 0.4578275, 0.40821073], dtype=np.float32)  # CLIP
+STD = np.array([0.26862954, 0.26130258, 0.27577711], dtype=np.float32)  # CLIP
+
+# "crop": resize the shorter side to TARGET_SIZE, then center crop (CLIP style).
+# "pad":  shrink to fit and fill the rest with black bars (letterbox).
+RESIZE_MODE = "crop"
+PAD_COLOR = (0, 0, 0)
  
 ImageInput = Union[str, Path, bytes, io.BytesIO, np.ndarray, Image.Image]
  
@@ -41,7 +45,14 @@ def load_image(source: ImageInput) -> Image.Image:
                 raise ImagePreprocessingError("The image file is empty.")
             img = Image.open(path)
         else:
-            data = source if isinstance(source, bytes) else source.read()
+            if isinstance(source, bytes):
+                data = source
+            elif hasattr(source, "getvalue"):
+                # Streamlit uploads: getvalue() returns the whole file even if
+                # something like st.image already read it.
+                data = source.getvalue()
+            else:
+                data = source.read()
             if not data:
                 raise ImagePreprocessingError("The image file is empty.")
             img = Image.open(io.BytesIO(data))
@@ -54,48 +65,56 @@ def load_image(source: ImageInput) -> Image.Image:
             "or not an image."
         ) from exc
     return img
+
+def to_rgb(img: Image.Image) -> Image.Image:
+    """Convert grayscale, palette, CMYK, or transparent images to plain RGB."""
+    if img.mode == "RGB":
+        return img
+    if img.mode in ("RGBA", "LA") or "transparency" in img.info:
+        img = img.convert("RGBA")
+        background = Image.new("RGB", img.size, PAD_COLOR)
+        background.paste(img, mask=img.getchannel("A"))
+        return background
+    return img.convert("RGB")
  
  
-def preprocess_image(source: ImageInput, normalize: bool = True):
+def resize_to_square(img: Image.Image, mode: str = RESIZE_MODE) -> Image.Image:
+    """Make the image TARGET_SIZE x TARGET_SIZE using the chosen method."""
+    size = (TARGET_SIZE, TARGET_SIZE)
+    if mode == "crop":
+        return ImageOps.fit(img, size, method=Image.Resampling.BICUBIC,
+                            centering=(0.5, 0.5))
+    if mode == "pad":
+        return ImageOps.pad(img, size, method=Image.Resampling.BICUBIC,
+                            color=PAD_COLOR, centering=(0.5, 0.5))
+    raise ValueError(f"Unknown resize mode: {mode}")
+
+def normalize(arr: np.ndarray) -> np.ndarray:
+    """(H, W, 3) uint8 -> (3, H, W) float32 normalized with MEAN and STD."""
+    arr = arr.astype(np.float32) / 255.0          # 0 to 255 -> 0 to 1
+    arr = (arr - MEAN) / STD                      # per-channel normalization
+    return np.ascontiguousarray(arr.transpose(2, 0, 1))  # channels first
+ 
+ 
+def preprocess_image(source: ImageInput):
     """Prepare one image for the model.
  
     Returns:
-        array: float32 array of shape (3, TARGET_SIZE, TARGET_SIZE).
+        array: float32 array of shape (3, TARGET_SIZE, TARGET_SIZE), normalized.
         info:  dict of metadata useful for tests and debugging.
     """
     img = load_image(source)
     original_size = img.size  # (width, height)
     original_mode = img.mode
  
-    # Respect camera orientation tags so phone photos aren't sideways.
-    img = ImageOps.exif_transpose(img)
- 
-    # Grayscale, palette, CMYK and RGBA all become plain 3-channel RGB.
-    if img.mode != "RGB":
-        if img.mode in ("RGBA", "LA") or "transparency" in img.info:
-            img = img.convert("RGBA")
-            background = Image.new("RGB", img.size, PAD_COLOR)
-            background.paste(img, mask=img.getchannel("A"))
-            img = background
-        else:
-            img = img.convert("RGB")
+    img = ImageOps.exif_transpose(img)  # fix phone photo orientation
+    img = to_rgb(img)
  
     if img.width == 0 or img.height == 0:
         raise ImagePreprocessingError("The image has no pixels.")
  
-    # Scale to fit inside a square and pad the rest, keeping proportions.
-    img = ImageOps.pad(
-        img,
-        (TARGET_SIZE, TARGET_SIZE),
-        method=Image.Resampling.BICUBIC,
-        color=PAD_COLOR,
-        centering=(0.5, 0.5),
-    )
- 
-    arr = np.asarray(img, dtype=np.float32) / 255.0  # (H, W, 3), 0 to 1
-    if normalize:
-        arr = (arr - IMAGENET_MEAN) / IMAGENET_STD
-    arr = np.ascontiguousarray(arr.transpose(2, 0, 1))  # (3, H, W)
+    img = resize_to_square(img)
+    arr = normalize(np.asarray(img, dtype=np.uint8))
  
     if not np.isfinite(arr).all():
         raise ImagePreprocessingError("Preprocessing produced invalid values.")
@@ -103,8 +122,7 @@ def preprocess_image(source: ImageInput, normalize: bool = True):
     info = {
         "original_size": original_size,
         "original_mode": original_mode,
+        "resize_mode": RESIZE_MODE,
         "output_shape": arr.shape,
-        "normalized": normalize,
     }
     return arr, info
- 
